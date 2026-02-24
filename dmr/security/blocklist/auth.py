@@ -83,7 +83,7 @@ class JWTTokenBlacklistAsyncMixin:
         exp = token.exp
         user = await self.get_user(token)
 
-        return BlacklistedJWTToken.objects.get_or_create(
+        return self.blocklist_model.objects.get_or_create(
             user=user,
             jti=jti,
             expires_at=exp,
