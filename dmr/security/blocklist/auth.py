@@ -1,60 +1,81 @@
-from typing import TYPE_CHECKING, override
+from typing import TYPE_CHECKING, ClassVar, Protocol
 
 from dmr.exceptions import NotAuthenticatedError
+from dmr.security.blocklist.models import BlacklistedJWTToken
 from dmr.security.jwt.token import JWTToken
-from dmr.security.token_blacklist.models import BlacklistedJWTToken
 
 if TYPE_CHECKING:
     from django.contrib.auth.base_user import AbstractBaseUser
 
-    from dmr.security.jwt.auth import JWTAsyncAuth, JWTSyncAuth
 
-    _BaseSync = JWTSyncAuth
-    _BaseAsync = JWTAsyncAuth
-else:
-    _BaseSync = object
-    _BaseAsync = object
+class _JWTAuth(Protocol):
+    blocklist_model: ClassVar[type[BlacklistedJWTToken]] = BlacklistedJWTToken
 
 
-class JWTTokenBlacklistSyncMixin(_BaseSync):
+class _JWTSyncAuth(_JWTAuth, Protocol):
+    def check_auth(
+        self,
+        user: 'AbstractBaseUser',
+        token: JWTToken,
+    ) -> None: ...
+
+    def get_user(self, token: JWTToken) -> 'AbstractBaseUser': ...
+
+
+class _JWTAsyncAuth(_JWTAuth, Protocol):
+    async def check_auth(
+        self,
+        user: 'AbstractBaseUser',
+        token: JWTToken,
+    ) -> None: ...
+
+    async def get_user(self, token: JWTToken) -> 'AbstractBaseUser': ...
+
+
+class JWTTokenBlacklistSyncMixin:
     """Sync mixin for working with tokens blacklist."""
 
-    @override
-    def check_auth(self, user: 'AbstractBaseUser', token: JWTToken) -> None:
+    def check_auth(
+        self: _JWTSyncAuth,
+        user: 'AbstractBaseUser',
+        token: JWTToken,
+    ) -> None:
         """Check if the token is in the black list, if so raise the error."""
-        super().check_auth(user, token)
+        super().check_auth(user, token)  # type: ignore[safe-super]
         if BlacklistedJWTToken.objects.filter(jti=token.jti).exists():
             raise NotAuthenticatedError
 
-    def blacklist(self, token: JWTToken) -> tuple[BlacklistedJWTToken, bool]:
+    def blacklist(
+        self: _JWTSyncAuth,
+        token: JWTToken,
+    ) -> tuple[BlacklistedJWTToken, bool]:
         """Add token to the blacklist."""
         jti = token.jti
         exp = token.exp
         user = self.get_user(token)
 
-        return BlacklistedJWTToken.objects.get_or_create(
+        return self.blocklist_model.objects.get_or_create(
             user=user,
             jti=jti,
             expires_at=exp,
         )
 
 
-class JWTTokenBlacklistAsyncMixin(_BaseAsync):
+class JWTTokenBlacklistAsyncMixin:
     """Async mixin for working with tokens blacklist."""
 
-    @override
     async def check_auth(
-        self,
+        self: _JWTAsyncAuth,
         user: 'AbstractBaseUser',
         token: JWTToken,
     ) -> None:
         """Check if the token is in the black list, if so raise the error."""
-        await super().check_auth(user, token)
+        await super().check_auth(user, token)  # type: ignore[safe-super]
         if BlacklistedJWTToken.objects.filter(jti=token.jti).exists():
             raise NotAuthenticatedError
 
     async def blacklist(
-        self,
+        self: _JWTAsyncAuth,
         token: JWTToken,
     ) -> tuple[BlacklistedJWTToken, bool]:
         """Add token to the blacklist."""
