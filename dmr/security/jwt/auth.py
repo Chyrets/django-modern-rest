@@ -92,7 +92,7 @@ class _BaseJWTAuth:  # noqa: WPS214, WPS230
         self.security_scheme_name = security_scheme_name
         self.auth_header = auth_header
         self.auth_scheme = auth_scheme
-        self.secret: str = secret or settings.SECRET_KEY
+        self.secret: str = secret or settings.SECRET_KEY  # type: ignore[assignment]
         self.token_cls = token_cls
         self.leeway = leeway
         self.accepted_audiences = accepted_audiences

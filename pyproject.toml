@@ -132,6 +132,10 @@ fix = true
 target-version = "py311"
 line-length = 80
 
+exclude = [
+  "**/migrations/*.py",
+]
+
 [tool.ruff.format]
 quote-style = "single"
 docstring-code-format = true
@@ -311,7 +315,12 @@ enable_error_code = [
 
 plugins = [
   "pydantic.mypy",
+  "mypy_django_plugin.main"
 ]
+
+[tool.django-stubs]
+django_settings_module = "dmr.settings"
+strict_model_abstract_attrs = false
 
 
 [tool.pyright]
@@ -320,6 +329,8 @@ include = ["dmr", "typesafety", "tests"]
 exclude = [
   # It has a lot of ugly code:
   "dmr/internal/django.py",
+  # TODO: need to figure out how to set up pyright with django-stubs or use django-types
+  "dmr/security/token_blacklist/models.py",
 ]
 strict = ["dmr/**/*"]
 venvPath = "."
