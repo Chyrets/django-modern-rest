@@ -1,4 +1,4 @@
-from typing import override
+from typing import Any, override
 
 from django.conf import settings
 from django.db import models
@@ -7,16 +7,23 @@ from django.db import models
 class BlacklistedJWTToken(models.Model):
     """Model for Blacklisted token."""
 
-    user = models.ForeignKey(
+    user: models.ForeignKey[Any, Any] = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
     )
-    jti = models.CharField(unique=True, max_length=255)
-    expires_at = models.DateTimeField()
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    jti: models.CharField[Any, Any] = models.CharField(
+        unique=True,
+        max_length=255,
+    )
+    expires_at: models.DateTimeField[Any, Any] = models.DateTimeField()
+    created_at: models.DateTimeField[Any, Any] = models.DateTimeField(
+        auto_now_add=True,
+    )
+    updated_at: models.DateTimeField[Any, Any] = models.DateTimeField(
+        auto_now=True,
+    )
 
     class Meta:
         abstract = 'dmr.security.token_blacklist' not in settings.INSTALLED_APPS
