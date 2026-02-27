@@ -14,8 +14,8 @@ from faker import Faker
 from dmr import Controller, modify
 from dmr.plugins.pydantic.serializer import PydanticSerializer
 from dmr.security.blocklist.auth import (
-    JWTTokenBlacklistAsyncMixin,
-    JWTTokenBlacklistSyncMixin,
+    JWTTokenBlocklistAsyncMixin,
+    JWTTokenBlocklistSyncMixin,
 )
 from dmr.security.jwt.auth import JWTAsyncAuth, JWTSyncAuth
 from dmr.security.jwt.token import JWTToken
@@ -60,36 +60,36 @@ def build_user_token(user: User, settings: LazySettings) -> _TokenBuilder:
     return factory
 
 
-class MyJWTSyncAuth(JWTTokenBlacklistSyncMixin, JWTSyncAuth):
-    """JWTSyncAuth with blacklist mixin."""
+class MyJWTSyncAuth(JWTTokenBlocklistSyncMixin, JWTSyncAuth):
+    """JWTSyncAuth with blocklist mixin."""
 
 
 @final
-class _BlacklistSyncController(Controller[PydanticSerializer]):
+class _BlocklistSyncController(Controller[PydanticSerializer]):
     @modify(auth=[MyJWTSyncAuth()])
     def get(self) -> str:
         return 'authed'
 
 
 @pytest.mark.django_db
-def test_add_to_blacklist(
+def test_add_to_blocklist(
     build_user_token: _TokenBuilder,
 ) -> None:
-    """Ensure that blacklist method works."""
+    """Ensure that blocklist method works."""
     token = build_user_token()
     auth = MyJWTSyncAuth()
     decoded_token = auth.decode_token(token)
-    auth.blacklist(decoded_token)
+    auth.blocklist(decoded_token)
 
     assert auth.blocklist_model.objects.filter(jti=decoded_token.jti).exists()
 
 
 @pytest.mark.django_db
-def test_blacklist_sync_mixin_success(
+def test_blocklist_sync_mixin_success(
     dmr_rf: DMRRequestFactory,
     build_user_token: _TokenBuilder,
 ) -> None:
-    """Ensures that sync check_auth of tokenblacklist mixin works."""
+    """Ensures that sync check_auth of tokenblocklist mixin works."""
     token = build_user_token()
     request = dmr_rf.get(
         '/whatever/',
@@ -98,7 +98,7 @@ def test_blacklist_sync_mixin_success(
         },
     )
 
-    response = _BlacklistSyncController.as_view()(request)
+    response = _BlocklistSyncController.as_view()(request)
 
     assert isinstance(response, HttpResponse)
     assert response.headers == {'Content-Type': 'application/json'}
@@ -106,11 +106,11 @@ def test_blacklist_sync_mixin_success(
 
 
 @pytest.mark.django_db
-def test_blacklist_sync_mixin_unauthorized(
+def test_blocklist_sync_mixin_unauthorized(
     dmr_rf: DMRRequestFactory,
     build_user_token: _TokenBuilder,
 ) -> None:
-    """Ensures that sync check_auth of tokenblacklist mixin works."""
+    """Ensures that sync check_auth of tokenblocklist mixin works."""
     token = build_user_token()
     request = dmr_rf.get(
         '/whatever/',
@@ -120,21 +120,21 @@ def test_blacklist_sync_mixin_unauthorized(
     )
     auth = MyJWTSyncAuth()
     decoded_token = auth.decode_token(token)
-    auth.blacklist(decoded_token)
+    auth.blocklist(decoded_token)
 
-    response = _BlacklistSyncController.as_view()(request)
+    response = _BlocklistSyncController.as_view()(request)
 
     assert isinstance(response, HttpResponse)
     assert response.headers == {'Content-Type': 'application/json'}
     assert response.status_code == HTTPStatus.UNAUTHORIZED
 
 
-class MyJWTAsyncAuth(JWTTokenBlacklistAsyncMixin, JWTAsyncAuth):
-    """JWTAsyncAuth with blacklist mixin."""
+class MyJWTAsyncAuth(JWTTokenBlocklistAsyncMixin, JWTAsyncAuth):
+    """JWTAsyncAuth with blocklist mixin."""
 
 
 @final
-class _BlacklistAsyncController(Controller[PydanticSerializer]):
+class _BlocklistAsyncController(Controller[PydanticSerializer]):
     @modify(auth=[MyJWTAsyncAuth()])
     async def get(self) -> str:
         return 'authed'
@@ -142,14 +142,14 @@ class _BlacklistAsyncController(Controller[PydanticSerializer]):
 
 @pytest.mark.asyncio
 @pytest.mark.django_db(transaction=True)
-async def test_async_add_to_blacklist(
+async def test_async_add_to_blocklist(
     build_user_token: _TokenBuilder,
 ) -> None:
-    """Ensure that blacklist method works."""
+    """Ensure that blocklist method works."""
     token = build_user_token()
     auth = MyJWTAsyncAuth()
     decoded_token = auth.decode_token(token)
-    await auth.blacklist(decoded_token)
+    await auth.blocklist(decoded_token)
 
     assert await auth.blocklist_model.objects.filter(
         jti=decoded_token.jti,
@@ -158,11 +158,11 @@ async def test_async_add_to_blacklist(
 
 @pytest.mark.asyncio
 @pytest.mark.django_db(transaction=True)
-async def test_blacklist_async_mixin_ok(
+async def test_blocklist_async_mixin_ok(
     dmr_async_rf: DMRAsyncRequestFactory,
     build_user_token: _TokenBuilder,
 ) -> None:
-    """Ensures that async check_auth of tokenblacklist mixin works."""
+    """Ensures that async check_auth of tokenblocklist mixin works."""
     token = build_user_token()
     request = dmr_async_rf.get(
         '/whatever/',
@@ -172,7 +172,7 @@ async def test_blacklist_async_mixin_ok(
     )
 
     response = await dmr_async_rf.wrap(
-        _BlacklistAsyncController.as_view()(request),
+        _BlocklistAsyncController.as_view()(request),
     )
 
     assert isinstance(response, HttpResponse)
@@ -182,11 +182,11 @@ async def test_blacklist_async_mixin_ok(
 
 @pytest.mark.asyncio
 @pytest.mark.django_db(transaction=True)
-async def test_blacklist_async_mixin_unauthorized(
+async def test_blocklist_async_mixin_unauthorized(
     dmr_async_rf: DMRAsyncRequestFactory,
     build_user_token: _TokenBuilder,
 ) -> None:
-    """Ensures that async check_auth of tokenblacklist mixin works."""
+    """Ensures that async check_auth of tokenblocklist mixin works."""
     token = build_user_token()
     request = dmr_async_rf.get(
         '/whatever/',
@@ -196,10 +196,10 @@ async def test_blacklist_async_mixin_unauthorized(
     )
     auth = MyJWTAsyncAuth()
     decoded_token = auth.decode_token(token)
-    await auth.blacklist(decoded_token)
+    await auth.blocklist(decoded_token)
 
     response = await dmr_async_rf.wrap(
-        _BlacklistAsyncController.as_view()(request),
+        _BlocklistAsyncController.as_view()(request),
     )
 
     assert isinstance(response, HttpResponse)

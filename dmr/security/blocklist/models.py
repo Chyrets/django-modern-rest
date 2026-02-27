@@ -6,8 +6,8 @@ from django.db import models
 from dmr.security.blocklist.apps import BlocklistConfig
 
 
-class BlacklistedJWTToken(models.Model):
-    """Model for Blacklisted token."""
+class BlocklistedJWTToken(models.Model):
+    """Model for Blocklisted token."""
 
     user: models.ForeignKey[Any, Any] = models.ForeignKey(
         settings.AUTH_USER_MODEL,

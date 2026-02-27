@@ -8,7 +8,7 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-    """Initial migration for BlacklistedJWTToken model."""
+    """Initial migration for BlocklistedJWTToken model."""
 
     initial = True
 
@@ -18,7 +18,7 @@ class Migration(migrations.Migration):
 
     operations: ClassVar = [
         migrations.CreateModel(
-            name='BlacklistedJWTToken',
+            name='BlocklistedJWTToken',
             fields=[
                 (
                     'id',
