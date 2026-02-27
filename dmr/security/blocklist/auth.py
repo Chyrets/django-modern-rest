@@ -1,5 +1,7 @@
 from typing import TYPE_CHECKING, ClassVar, Protocol
 
+from asgiref.sync import sync_to_async
+
 from dmr.exceptions import NotAuthenticatedError
 from dmr.security.blocklist.models import BlacklistedJWTToken
 from dmr.security.jwt.token import JWTToken
@@ -9,7 +11,7 @@ if TYPE_CHECKING:
 
 
 class _JWTAuth(Protocol):
-    blocklist_model: ClassVar[type[BlacklistedJWTToken]] = BlacklistedJWTToken
+    blocklist_model: ClassVar[type[BlacklistedJWTToken]]
 
 
 class _JWTSyncAuth(_JWTAuth, Protocol):
@@ -34,6 +36,8 @@ class _JWTAsyncAuth(_JWTAuth, Protocol):
 
 class JWTTokenBlacklistSyncMixin:
     """Sync mixin for working with tokens blacklist."""
+
+    blocklist_model: ClassVar[type[BlacklistedJWTToken]] = BlacklistedJWTToken
 
     def check_auth(
         self: _JWTSyncAuth,
@@ -64,6 +68,8 @@ class JWTTokenBlacklistSyncMixin:
 class JWTTokenBlacklistAsyncMixin:
     """Async mixin for working with tokens blacklist."""
 
+    blocklist_model: ClassVar[type[BlacklistedJWTToken]] = BlacklistedJWTToken
+
     async def check_auth(
         self: _JWTAsyncAuth,
         user: 'AbstractBaseUser',
@@ -71,7 +77,7 @@ class JWTTokenBlacklistAsyncMixin:
     ) -> None:
         """Check if the token is in the black list, if so raise the error."""
         await super().check_auth(user, token)  # type: ignore[safe-super]
-        if BlacklistedJWTToken.objects.filter(jti=token.jti).exists():
+        if await BlacklistedJWTToken.objects.filter(jti=token.jti).aexists():
             raise NotAuthenticatedError
 
     async def blacklist(
@@ -83,7 +89,7 @@ class JWTTokenBlacklistAsyncMixin:
         exp = token.exp
         user = await self.get_user(token)
 
-        return self.blocklist_model.objects.get_or_create(
+        return await sync_to_async(self.blocklist_model.objects.get_or_create)(
             user=user,
             jti=jti,
             expires_at=exp,

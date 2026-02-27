@@ -3,6 +3,8 @@ from typing import Any, override
 from django.conf import settings
 from django.db import models
 
+from dmr.security.blocklist.apps import BlocklistConfig
+
 
 class BlacklistedJWTToken(models.Model):
     """Model for Blacklisted token."""
@@ -26,7 +28,7 @@ class BlacklistedJWTToken(models.Model):
     )
 
     class Meta:
-        abstract = 'dmr.security.token_blacklist' not in settings.INSTALLED_APPS
+        abstract = BlocklistConfig.name not in settings.INSTALLED_APPS
 
     @override
     def __str__(self) -> str:
