@@ -1,7 +1,5 @@
 from typing import TYPE_CHECKING, ClassVar, Protocol
 
-from asgiref.sync import sync_to_async
-
 from dmr.exceptions import NotAuthenticatedError
 from dmr.security.blocklist.models import BlacklistedJWTToken
 from dmr.security.jwt.token import JWTToken
@@ -89,7 +87,7 @@ class JWTTokenBlacklistAsyncMixin:
         exp = token.exp
         user = await self.get_user(token)
 
-        return await sync_to_async(self.blocklist_model.objects.get_or_create)(
+        return await self.blocklist_model.objects.aget_or_create(
             user=user,
             jti=jti,
             expires_at=exp,
