@@ -1,4 +1,5 @@
 import dataclasses
+import enum
 import typing as ty
 from abc import abstractmethod
 from collections.abc import AsyncGenerator, AsyncIterator, Mapping, Set
@@ -11,6 +12,7 @@ from typing import (  # noqa: WPS235
     Final,
     TypeAlias,
     TypeVar,
+    final,
     get_args,
     get_origin,
 )
@@ -37,6 +39,17 @@ if TYPE_CHECKING:
     from dmr.settings import HttpSpec
 
 ComponentParserSpec: TypeAlias = tuple['ComponentParser', Any, tuple[Any, ...]]
+
+
+@final
+@enum.unique
+class SemanticResponses(enum.StrEnum):
+    """Keys for all semantic responses."""
+
+    spec = 'spec'
+    parsers = 'parsers'
+    renderers = 'renderers'
+    auth = 'auth'
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -313,6 +326,8 @@ class EndpointMetadata:
             that are allowed for this endpoint.
         semantic_responses: Should semantic responses
             from different providers be collected?
+        exclude_semantic_responses: Set of semantic responses
+            that user wants to disable.
         validate_events: Should this endpoint validate events?
             If not set, defaults to the ``validate_responses`` value.
             This value only matters if the response
@@ -361,6 +376,7 @@ class EndpointMetadata:
     no_validate_http_spec: frozenset['HttpSpec']
     allowed_http_methods: frozenset[str]
     semantic_responses: bool
+    exclude_semantic_responses: Set[str]
     validate_events: bool
 
     # OpenAPI documentation fields:
@@ -432,12 +448,26 @@ class EndpointMetadata:
         if not self.semantic_responses:
             return []
 
-        return [
-            *[type(spec[0]) for spec in self.component_parsers],
-            *[type(parser) for parser in self.parsers.values()],
-            *[type(renderer) for renderer in self.renderers.values()],
-            *[type(auth) for auth in (self.auth or [])],
-        ]
+        all_semantic_responses: list[type[ResponseSpecProvider]] = []
+
+        if SemanticResponses.spec not in self.exclude_semantic_responses:
+            all_semantic_responses.extend(
+                [type(spec[0]) for spec in self.component_parsers],
+            )
+        if SemanticResponses.parsers not in self.exclude_semantic_responses:
+            all_semantic_responses.extend(
+                [type(parser) for parser in self.parsers.values()],
+            )
+        if SemanticResponses.renderers not in self.exclude_semantic_responses:
+            all_semantic_responses.extend(
+                [type(renderer) for renderer in self.renderers.values()],
+            )
+        if SemanticResponses.auth not in self.exclude_semantic_responses:
+            all_semantic_responses.extend(
+                [type(auth) for auth in (self.auth or [])],
+            )
+
+        return all_semantic_responses
 
 
 _MetadataT = TypeVar('_MetadataT')

@@ -123,6 +123,7 @@ class Controller(Generic[_SerializerT_co], View):  # noqa: WPS214
     no_validate_http_spec: ClassVar[Set[HttpSpec]] = frozenset()
     validate_responses: ClassVar[bool | None] = None
     semantic_responses: ClassVar[bool | None] = None
+    exclude_semantic_responses: ClassVar[Set[str]] = frozenset()
     validate_events: ClassVar[bool | None] = None
     responses: ClassVar[Sequence[ResponseSpec]] = []
     allowed_http_methods: ClassVar[Set[str]] = frozenset(
