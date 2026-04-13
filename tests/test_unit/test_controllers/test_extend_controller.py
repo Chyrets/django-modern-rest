@@ -63,10 +63,10 @@ def test_inherited_child_created_properly() -> None:
     """Ensure that we can create inherited controllers."""
 
     class _Parent(Controller[PydanticSerializer]):
-        """Emptry parent controller."""
+        """Empty parent controller."""
 
     class _Child(_Parent):
-        """Emptry child controller."""
+        """Empty child controller."""
 
     assert not _Child.is_abstract
     assert _Child.serializer is PydanticSerializer
