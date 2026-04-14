@@ -28,12 +28,22 @@ def test_controller_generic_subclass() -> None:
     assert getattr(_Custom, 'api_endpoints', None) is None
     assert getattr(_Custom, 'serializer', None) is None
 
-    class _Final(_Custom[PydanticSerializer]):
+    class _Intermediate(_Custom[PydanticSerializer]):
         """Also empty, but not generic."""
+
+    assert _Intermediate.is_abstract
+    assert _Intermediate.serializer is PydanticSerializer
+    assert _Intermediate.api_endpoints == {}
+
+    class _Final(_Intermediate):
+        """Final controller with endpoints."""
+
+        def get(self) -> str:
+            raise NotImplementedError
 
     assert not _Final.is_abstract
     assert _Final.serializer is PydanticSerializer
-    assert _Final.api_endpoints == {}
+    assert _Final.api_endpoints.keys() == {'GET'}
 
 
 def test_controller_wrong_serializer() -> None:
@@ -57,17 +67,3 @@ def test_controller_base_serializer() -> None:
 
         class _Custom(Controller[BaseSerializer]):
             """Empty."""
-
-
-def test_inherited_child_created_properly() -> None:
-    """Ensure that we can create inherited controllers."""
-
-    class _Parent(Controller[PydanticSerializer]):
-        """Empty parent controller."""
-
-    class _Child(_Parent):
-        """Empty child controller."""
-
-    assert not _Child.is_abstract
-    assert _Child.serializer is PydanticSerializer
-    assert _Child.api_endpoints == {}
