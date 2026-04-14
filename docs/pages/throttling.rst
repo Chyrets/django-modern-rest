@@ -176,14 +176,19 @@ Why? Because we need to:
 1. Protect auth from abusive requests and brute forcing
 2. Make sure we can base throttling rules on the auth info
 
+The same can be said about content negotiation,
+it also must be protected by throttling.
+Otherwise, people can abuse content negotiation without any request limits.
+
 .. mermaid::
   :caption: Throttling execution
   :config: {"theme": "forest"}
 
   graph
-      Start[New request] --> BeforeThrottle[Throttling based on IP];
-      BeforeThrottle --> Auth[Auth];
-      Auth --> AfterThrottle[Throttling based on auth];
+      Start[New request] --> BeforeThrottle[Throttling based on IP or 429];
+      BeforeThrottle --> RendererNegotiation[Renderer is negotiated or 406];
+      RendererNegotiation --> Auth[Auth or 401];
+      Auth --> AfterThrottle[Throttling based on auth or 429];
 
 All cache keys know when to execute by default, however you can customize this.
 For example, you can run some IP based throttling checks after the auth itself:
@@ -291,6 +296,61 @@ Key considerations:
   https://django-ratelimit.readthedocs.io/en/latest/security.html
 
 
+Throttling reports
+------------------
+
+If you need to attach any throttling headers to successful responses,
+you can do it as well.
+
+For this we offer two APIs:
+
+- :meth:`dmr.throttling.ThrottlingReport.report` for sync APIs
+- :meth:`dmr.throttling.ThrottlingReport.areport` for async APIs
+
+All our regular rules apply:
+
+- All new headers must be added to the corresponding
+  :class:`~dmr.metadata.ResponseSpec` definitions
+- When settings headers, you would need to use :func:`~dmr.endpoint.validate`
+
+.. literalinclude:: /examples/throttling/reports.py
+  :caption: views.py
+  :linenos:
+  :language: python
+
+Use ``headers`` argument to :meth:`~dmr.controller.Controller.to_response`
+to add needed headers.
+
+.. warning::
+
+  :class:`~dmr.throttling.ThrottlingReport` will make ``N`` cache requests
+  when building header reports (where ``N`` is the number of throttle
+  instances used for this endpoint).
+
+  It might be slow, depending on the number of throttles and your cache.
+
+  It might also fail, we don't handle any errors
+  in the reports building process.
+
+  Use this feature only when there's a serious need for it.
+
+You can also provide the same headers not just for successful responses,
+but for any errors that consume ratelimit quota as well.
+
+To so, you would need
+to :ref:`customize headers spec <customizing-error-messages>`
+of your error model:
+
+.. literalinclude:: /examples/throttling/reports_for_errors.py
+  :caption: views.py
+  :linenos:
+  :language: python
+
+Method ``to_response`` is used for both successful and error responses.
+This way both your successful responses
+and error responses will have the needed ratelimiting headers.
+
+
 API Reference
 -------------
 
@@ -306,6 +366,9 @@ Base
   :inherited-members:
 
 .. autoclass:: dmr.throttling.Rate
+  :members:
+
+.. autoclass:: dmr.throttling.ThrottlingReport
   :members:
 
 Backends

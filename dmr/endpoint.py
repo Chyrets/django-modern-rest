@@ -19,6 +19,7 @@ from dmr.exceptions import (
 )
 from dmr.headers import HeaderSpec, NewHeader
 from dmr.internal.context import SerializerContext as SerializerContext
+from dmr.internal.endpoint import request_endpoint as request_endpoint
 from dmr.metadata import EndpointMetadata, ResponseModification, ResponseSpec
 from dmr.negotiation import RequestNegotiator, ResponseNegotiator
 from dmr.openapi.objects import (
@@ -48,6 +49,7 @@ from dmr.validation import (
 if TYPE_CHECKING:
     from dmr.controller import Controller
     from dmr.openapi.core.context import OpenAPIContext
+    from dmr.routing import Router
     from dmr.validation.response import ValidatedModification
 
 
@@ -263,6 +265,7 @@ class Endpoint:  # noqa: WPS214
         controller_name: str,
         serializer: type[BaseSerializer],
         context: 'OpenAPIContext',
+        router: 'Router',
     ) -> Operation:
         """Build an OpenAPI Operation from an endpoint."""
         operation_id = self.get_operation_id(
@@ -282,11 +285,16 @@ class Endpoint:  # noqa: WPS214
             serializer,
         )
 
+        tags = [
+            *router.tags,
+            *(self.metadata.tags or []),
+        ]
+
         return Operation(
-            tags=self.metadata.tags,
+            tags=tags or None,
             summary=self.metadata.summary,
             description=self.metadata.description,
-            deprecated=self.metadata.deprecated,
+            deprecated=self.metadata.deprecated or router.deprecated,
             security=security,
             external_docs=self.metadata.external_docs,
             servers=self.metadata.servers,
@@ -324,8 +332,7 @@ class Endpoint:  # noqa: WPS214
             **kwargs: Any,
         ) -> HttpResponseBase:
             try:  # noqa: WPS229
-                # Negotiate response:
-                self.response_negotiator(controller.request)
+                controller.request.__dmr_endpoint__ = self  # type: ignore[attr-defined]
 
                 # Run checks:
                 await self._run_async_checks(controller)
@@ -361,8 +368,7 @@ class Endpoint:  # noqa: WPS214
             **kwargs: Any,
         ) -> HttpResponseBase:
             try:  # noqa: WPS229
-                # Negotiate response:
-                self.response_negotiator(controller.request)
+                controller.request.__dmr_endpoint__ = self  # type: ignore[attr-defined]
 
                 # Run checks:
                 self._run_checks(controller)
@@ -389,8 +395,13 @@ class Endpoint:  # noqa: WPS214
     # Sync checks:
 
     def _run_checks(self, controller: 'Controller[BaseSerializer]') -> None:
+        # First round of throttling:
         self._run_throttle_before(controller)
+        # Negotiate response:
+        self.response_negotiator(controller.request)
+        # Auth:
         self._run_auth(controller)
+        # Second round of throttling:
         self._run_throttle_after(controller)
 
     def _run_throttle_before(
@@ -430,8 +441,13 @@ class Endpoint:  # noqa: WPS214
         self,
         controller: 'Controller[BaseSerializer]',
     ) -> None:
+        # First round of throttling:
         await self._run_async_throttle_before(controller)
+        # Negotiate response:
+        self.response_negotiator(controller.request)
+        # Auth:
         await self._run_async_auth(controller)
+        # Second round of throttling:
         await self._run_async_throttle_after(controller)
 
     async def _run_async_throttle_before(
